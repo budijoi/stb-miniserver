@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Squid Cache Monitor",
+  "version": "1.0",
+  "description": "Monitor dan bersihkan cache Squid Proxy server",
+  "permissions": ["storage"],
+  "host_permissions": ["http://*/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Squid Cache Monitor",
+    "default_icon": {
+      "16": "icon16.svg",
+      "48": "icon48.svg",
+      "128": "icon128.svg"
+    }
+  },
+  "icons": {
+    "16": "icon16.svg",
+    "48": "icon48.svg",
+    "128": "icon128.svg"
+  }
+}

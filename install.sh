@@ -5,7 +5,7 @@
 
 # === LOAD MODULES ===
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-for mod in common detect squid adblock webserver landing landing-api filemanager sdcard optimize; do
+for mod in common detect squid adblock webserver landing landing-api filemanager sdcard optimize cache; do
     mod_file="$SCRIPT_DIR/modules/${mod}.sh"
     [ -f "$mod_file" ] && source "$mod_file"
 done
@@ -29,11 +29,13 @@ MAIN_MENU() {
     echo -e "  ${CYAN}[5]${NC} ${BOLD}Instal Semua${NC}          ${DIM}(Landing + FM + AdBlock + Squid)${NC}"
     echo -e "  ${CYAN}[6]${NC} ${RED}${BOLD}Hapus Semua${NC}      ${DIM}(Uninstall bersih)${NC}"
     echo ""
+    echo -e "  ${CYAN}[7]${NC} ${BOLD}Cache Monitor${NC}         ${DIM}(Monitoring + Browser Extension)${NC}"
+    echo ""
     echo -e "  ${CYAN}[0]${NC} Keluar"
     echo ""
 
     local choice
-    choice=$(MENU_CHOICE "Pilih" 0 6)
+    choice=$(MENU_CHOICE "Pilih" 0 7)
     echo ""
 
     case "$choice" in
@@ -43,6 +45,7 @@ MAIN_MENU() {
         4) INSTALL_SQUID ;;
         5) INSTALL_ALL ;;
         6) UNINSTALL_ALL ;;
+        7) INSTALL_CACHE_MONITOR ;;
         0) echo -e "${DIM}Keluar.${NC}"; exit 0 ;;
     esac
 
@@ -88,6 +91,7 @@ INSTALL_ALL() {
     INSTALL_FILEMANAGER
     INSTALL_ADBLOCK
     INSTALL_SQUID
+    INSTALL_CACHE_MONITOR
 
     local iface ip_addr
     iface=$(GET_IP)
@@ -101,11 +105,13 @@ INSTALL_ALL() {
     echo -e "${NC}"
     echo -e "  ${BOLD}Landing Page${NC}  ${CYAN}http://$ip_addr${NC}"
     echo -e "  ${BOLD}File Manager${NC}  ${CYAN}http://$ip_addr/filemanager/${NC}"
-    echo -e "  ${BOLD}Squid Proxy${NC}   ${CYAN}http://$ip_addr:3128${NC}"
+    echo -e "  ${BOLD}Squid Proxy${NC}   ${CYAN}http://$ip_addr:3128${NC} (cache max 10GB)"
     echo -e "  ${BOLD}AdBlock DNS${NC}   ${CYAN}$ip_addr (port 53)${NC}"
+    echo -e "  ${BOLD}Cache Monitor${NC} ${CYAN}http://$ip_addr/cache-monitor/${NC}"
     echo ""
     echo -e "  ${DIM}Gunakan theme selector di landing page untuk ganti tema${NC}"
     echo -e "  ${DIM}File manager bisa akses root, /var/www, dan folder default${NC}"
+    echo -e "  ${DIM}Browser extension: Load folder browser-extension/ di chrome://extensions${NC}"
     echo ""
     PRESS_ENTER
 }
@@ -120,6 +126,7 @@ UNINSTALL_ALL() {
     echo -e "    • dnsmasq (package + config + adblock)"
     echo -e "    • Nginx + PHP (package + config)"
     echo -e "    • Landing Page + File Manager"
+    echo -e "    • Cache Monitor + Extension"
     echo -e "    • Cron job update adblock"
     echo -e "    • Firewall rules"
     echo ""
@@ -130,6 +137,7 @@ UNINSTALL_ALL() {
     REMOVE_WEBSERVER
     REMOVE_LANDING
     REMOVE_FILEMANAGER
+    REMOVE_CACHE_MONITOR
 
     CLEANUP_APT
     MSG_OK "Semua aplikasi berhasil dihapus"

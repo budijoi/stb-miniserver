@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Squid Cache Monitor</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
+body{width:320px;background:#0f0f1a;color:#eee;padding:12px}
+h1{font-size:14px;color:#e94560;margin-bottom:10px;text-align:center}
+.card{background:#1a1a2e;border-radius:8px;padding:10px;margin-bottom:8px;border:1px solid #2a2a3e}
+.row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
+.label{color:#888}.value{font-weight:600}
+.value.ok{color:#4ecca3}.value.warn{color:#ffc107}.value.bad{color:#e94560}
+.bar-wrap{height:6px;background:#2a2a3e;border-radius:3px;margin:6px 0;overflow:hidden}
+.bar{height:100%;border-radius:3px;transition:width .5s}
+.bar.ok{background:#4ecca3}.bar.warn{background:#ffc107}.bar.bad{background:#e94560}
+.btn{width:100%;padding:8px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;transition:.2s;margin-top:8px}
+.btn-clean{background:#e94560;color:#fff}
+.btn-clean:hover{opacity:.8}
+.btn-clean:disabled{background:#555;cursor:not-allowed}
+.btn-refresh{background:#333;color:#eee;margin-top:4px}
+.btn-refresh:hover{background:#444}
+.server-input{width:100%;padding:6px 8px;background:#0f0f1a;border:1px solid #333;border-radius:4px;color:#eee;font-size:12px;margin-bottom:4px}
+.server-label{font-size:11px;color:#888;display:block;margin-bottom:2px}
+.status-msg{font-size:11px;text-align:center;padding:4px;border-radius:4px;margin-top:6px;display:none}
+.status-msg.loading{display:block;background:#1a3a2a;color:#4ecca3}
+.status-msg.error{display:block;background:#3a1a1a;color:#e94560}
+.status-msg.success{display:block;background:#1a3a2a;color:#4ecca3}
+.hit-rate{font-size:18px;font-weight:700;text-align:center;padding:8px 0}
+.hit-rate .sub{font-size:10px;color:#888;font-weight:400}
+</style>
+</head>
+<body>
+<h1>Squid Cache Monitor</h1>
+
+<label class="server-label">Server IP</label>
+<input type="text" id="serverIp" class="server-input" placeholder="192.168.1.100">
+
+<div id="stats">
+<div class="card">
+<div class="hit-rate" id="hitDisplay">- <span class="sub">HIT RATE</span></div>
+<div class="bar-wrap"><div class="bar" id="cacheBar" style="width:0%"></div></div>
+</div>
+<div class="card">
+<div class="row"><span class="label">Cache Size</span><span class="value" id="cacheSize">-</span></div>
+<div class="row"><span class="label">Max Cache</span><span class="value" id="maxCache">10 GB</span></div>
+<div class="row"><span class="label">Usage</span><span class="value" id="usagePct">0%</span></div>
+<div class="row"><span class="label">Objects</span><span class="value" id="objectCount">-</span></div>
+<div class="row"><span class="label">Status</span><span class="value" id="statusText">-</span></div>
+</div>
+</div>
+
+<button class="btn btn-clean" id="cleanBtn"> Bersihkan Cache</button>
+<button class="btn btn-refresh" id="refreshBtn"> Refresh</button>
+
+<div id="statusMsg" class="status-msg"></div>
+
+<script src="popup.js"></script>
+</body>
+</html>

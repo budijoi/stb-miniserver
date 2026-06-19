@@ -100,7 +100,7 @@ cache_mem 256 MB
 maximum_object_size_in_memory 512 KB
 minimum_object_size 0 KB
 maximum_object_size 64 MB
-cache_dir ufs /var/spool/squid 2048 16 256
+cache_dir ufs /var/spool/squid 10240 16 256
 dns_nameservers 1.1.1.1 8.8.8.8
 memory_replacement_policy heap GDSF
 cache_replacement_policy heap LFUDA
