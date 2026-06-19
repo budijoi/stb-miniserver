@@ -46,6 +46,7 @@ RUN_BG() {
 
 INSTALL_PKG() {
     local pkg=$1
+    DNS_SAFE
     echo -ne "  ${DIM}Install ${CYAN}$pkg${NC}${DIM}...${NC} "
     if dpkg -s "$pkg" >/dev/null 2>&1; then
         echo -e "${GREEN}✓${NC} (sudah terinstall)"
@@ -69,6 +70,7 @@ INSTALL_PKG() {
 }
 
 APT_UPDATE() {
+    DNS_SAFE
     echo -e "  ${DIM}Update package list...${NC}"
     RUN_BG "Memperbarui package list" apt update -qq
 }
@@ -203,6 +205,21 @@ MENU_CHOICE() {
         fi
         echo -e "${RED}Pilihan tidak valid${NC}"
     done
+}
+
+# Pastikan DNS bisa resolve sebelum apt
+DNS_SAFE() {
+    local current_dns
+    current_dns=$(head -1 /etc/resolv.conf 2>/dev/null || echo "")
+    if echo "$current_dns" | grep -q "127.0.0.1"; then
+        echo -e "  ${YELLOW}DNS mengarah ke localhost, set publik dulu...${NC}"
+        chattr -i /etc/resolv.conf 2>/dev/null || true
+        cat > /etc/resolv.conf << 'PUBDNS'
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+PUBDNS
+        echo -e "  ${GREEN}✓${NC} DNS publik: 1.1.1.1, 8.8.8.8"
+    fi
 }
 
 # Format bytes ke human readable

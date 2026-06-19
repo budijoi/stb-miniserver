@@ -141,6 +141,15 @@ UPDATE_ADBLOCK_LISTS() {
 }
 
 DNS_USE_LOCAL() {
+    sleep 2
+    if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
+        MSG_WARN "dnsmasq belum running, DNS publik dipertahankan"
+        return 1
+    fi
+    if ! nslookup google.com 127.0.0.1 2>/dev/null >/dev/null; then
+        MSG_WARN "dnsmasq belum siap melayani query, DNS publik dipertahankan"
+        return 1
+    fi
     chattr -i /etc/resolv.conf 2>/dev/null || true
     cat > /etc/resolv.conf << 'LOCAL'
 nameserver 127.0.0.1
