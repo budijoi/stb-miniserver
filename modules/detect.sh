@@ -1,8 +1,6 @@
 #!/bin/bash
 # Module: Deteksi konflik, port, dan aplikasi sejenis
-# Sumber: modules/detect.sh
 
-# Deteksi dan nonaktifkan service yang konflik
 DETECT_DISABLE_CONFLICTS() {
     local filter="$1"
 
@@ -44,15 +42,8 @@ DETECT_DISABLE_CONFLICTS() {
     CONFIRM "Lanjutkan?" || { MSG_INFO "Dibatalkan"; return 1; }
 
     if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
-        MSG_WARN "systemd-resolved akan dinonaktifkan. Memasang DNS fallback..."
-        rm -f /etc/resolv.conf
-        cat > /etc/resolv.conf << 'RESOLV'
-nameserver 1.1.1.1
-nameserver 8.8.8.8
-RESOLV
-        chattr -i /etc/resolv.conf 2>/dev/null || true
-        chattr +i /etc/resolv.conf 2>/dev/null || true
-        MSG_OK "DNS fallback: 1.1.1.1, 8.8.8.8"
+        MSG_WARN "Menonaktifkan systemd-resolved, pastikan DNS publik..."
+        DNS_PUBLIC
     fi
 
     local svc_list=""
@@ -75,48 +66,33 @@ RESOLV
     return 0
 }
 
-# Cek port dan beri rekomendasi
 PORT_CHECK_ADVANCED() {
     local port=$1 service_name=$2
     echo -e "  ${DIM}Memeriksa port $port ($service_name)...${NC}"
-
     if PORT_CHECK "$port"; then
         local used_by
         used_by=$(ss -tuln 2>/dev/null | grep ":$port " | awk '{print $1, $5}' | head -1)
         MSG_WARN "Port $port sudah dipakai: $used_by"
-
         local new_port
         new_port=$(PORT_FIND "$((port + 1))")
         if [ -n "$new_port" ]; then
             MSG_INFO "Port tersedia: $new_port"
-            if CONFIRM "Gunakan port $new_port?"; then
-                echo "$new_port"
-                return 0
-            fi
+            CONFIRM "Gunakan port $new_port?" && { echo "$new_port"; return 0; }
         else
-            MSG_FAIL "Tidak ada port kosong di sekitar $port"
+            MSG_FAIL "Tidak ada port kosong"
         fi
-        echo ""
-        return 1
+        echo ""; return 1
     fi
-    echo "$port"
-    return 0
+    echo "$port"; return 0
 }
 
-# Deteksi web server yang terinstall
 DETECT_WEBSERVER() {
-    if command -v nginx &>/dev/null; then
-        echo "nginx"
-    elif command -v apache2 &>/dev/null; then
-        echo "apache2"
-    elif command -v lighttpd &>/dev/null; then
-        echo "lighttpd"
-    else
-        echo ""
-    fi
+    command -v nginx &>/dev/null && echo "nginx" && return 0
+    command -v apache2 &>/dev/null && echo "apache2" && return 0
+    command -v lighttpd &>/dev/null && echo "lighttpd" && return 0
+    echo ""; return 1
 }
 
-# Cek apakah landing page sudah terdeploy
 DETECT_LANDING_PAGE() {
     [ -f /var/www/html/index.html ] && grep -q "AIO Landing" /var/www/html/index.html 2>/dev/null && return 0
     [ -f /var/www/landing/index.html ] && return 0
@@ -124,23 +100,19 @@ DETECT_LANDING_PAGE() {
     return 1
 }
 
-# Cek apakah file manager sudah terdeploy
 DETECT_FILEMANAGER() {
     [ -f /var/www/html/filemanager/index.php ] && return 0
     [ -f /var/www/filemanager/index.php ] && return 0
     return 1
 }
 
-# Cek SDCard
 DETECT_SDCARD() {
     local sdcard_dev=""
     for dev in mmcblk1 mmcblk2 sda sdb; do
         if [ -b "/dev/${dev}" ] && ! mount | grep -q "/dev/${dev}.* / "; then
-            sdcard_dev="/dev/${dev}"
-            break
+            sdcard_dev="/dev/${dev}"; break
         fi
     done
-
     if [ -n "$sdcard_dev" ]; then
         local partitions
         partitions=$(lsblk -ln "$sdcard_dev" 2>/dev/null | grep -c part || echo 0)

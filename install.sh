@@ -12,6 +12,13 @@ done
 
 ROOT_CHECK
 
+# DNS harus working sebelum apa pun — ini fix utama untuk error "Could not resolve host"
+chattr -i /etc/resolv.conf 2>/dev/null || true
+DNS_SAFE
+
+# Trap: pastikan DNS publik saat exit (apapun penyebabnya)
+trap 'chattr -i /etc/resolv.conf 2>/dev/null; DNS_PUBLIC' EXIT
+
 CONFLICTS=()
 
 # === MENU UTAMA ===

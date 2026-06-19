@@ -1,6 +1,5 @@
 #!/bin/bash
-# Module: Install dan Konfigurasi AdBlock (dnsmasq)
-# Sumber: modules/adblock.sh
+# Module: Install AdBlock (dnsmasq)
 
 ADBLOCK_DIR="/etc/adblock"
 ADBLOCK_LIST="$ADBLOCK_DIR/blocked.hosts"
@@ -10,7 +9,8 @@ ADBLOCK_UPDATER="/usr/local/bin/update-adblock.sh"
 
 INSTALL_ADBLOCK() {
     clear
-    MSG_TITLE "INSTALL ADBLOCK (dnsmasq)"
+    MSG_TITLE "INSTALL AD-BLOCK (dnsmasq)"
+    DNS_SAFE
 
     local IFACE IP_ADDR
     IFACE=$(GET_IP)
@@ -18,30 +18,15 @@ INSTALL_ADBLOCK() {
 
     if command -v dnsmasq &>/dev/null; then
         MSG_WARN "dnsmasq sudah terinstall"
-        local action
-        action=$(APP_MENU "AdBlock (dnsmasq)")
-        case "$action" in
-            1)
-                MSG_INFO "Memperbarui dnsmasq..."
-                apt install --only-upgrade -y dnsmasq > /dev/null 2>&1 || true
-                UPDATE_ADBLOCK_LISTS
-                RESTART_SERVICE dnsmasq
-                DNS_USE_LOCAL
-                PRESS_ENTER
-                return 0
-                ;;
-            2)
-                REMOVE_ADBLOCK
-                PRESS_ENTER
-                return 0
-                ;;
-            3)
-                REMOVE_ADBLOCK
-                ;;
-            0)
-                MSG_INFO "Melewati instalasi AdBlock"
-                return 0
-                ;;
+        case "$(APP_MENU "AdBlock")" in
+            1) apt install --only-upgrade -y dnsmasq > /dev/null 2>&1 || true
+               UPDATE_ADBLOCK_LISTS
+               systemctl restart dnsmasq 2>/dev/null || true
+               DNS_USE_LOCAL
+               PRESS_ENTER; return 0 ;;
+            2) REMOVE_ADBLOCK; PRESS_ENTER; return 0 ;;
+            3) REMOVE_ADBLOCK ;;
+            0) MSG_INFO "Skip"; PRESS_ENTER; return 0 ;;
         esac
     fi
 
@@ -52,7 +37,6 @@ INSTALL_ADBLOCK() {
     INSTALL_PKG dnsmasq || return
 
     mkdir -p "$ADBLOCK_DIR" /etc/dnsmasq.d
-
     BACKUP_FILE "$DNSMASQ_CONF"
 
     cat > "$DNSMASQ_CONF" << EOF
@@ -70,28 +54,24 @@ EOF
     MSG_OK "Config dnsmasq ditulis"
 
     DEPLOY_UPDATER
-
     UPDATE_ADBLOCK_LISTS
 
-    RESTART_SERVICE dnsmasq
-
-    if SERVICE_ACTIVE dnsmasq; then
-        DNS_USE_LOCAL
-    fi
+    systemctl restart dnsmasq 2>/dev/null || systemctl start dnsmasq 2>/dev/null
+    systemctl enable dnsmasq > /dev/null 2>&1 || true
 
     UFW_ALLOW 53/tcp "dnsmasq DNS"
     UFW_ALLOW 53/udp "dnsmasq DNS"
 
     local cron_job="0 3 * * * $ADBLOCK_UPDATER"
     (crontab -l 2>/dev/null | grep -v "update-adblock.sh"; echo "$cron_job") | crontab - 2>/dev/null || true
-    MSG_OK "Cron job: update adblock setiap jam 3 pagi"
+    MSG_OK "Cron: update adblock jam 3 pagi"
 
     if SERVICE_ACTIVE dnsmasq; then
+        DNS_USE_LOCAL
         local count=0
         [ -f "$ADBLOCK_LIST" ] && count=$(grep -c "^0\.0\.0\.0" "$ADBLOCK_LIST" 2>/dev/null || echo 0)
         echo ""
-        MSG_OK "AdBlock berjalan — DNS: $IP_ADDR (port 53)"
-        MSG_INFO "Domain diblokir: ${YELLOW}$count${NC}"
+        MSG_OK "AdBlock: DNS $IP_ADDR (port 53) — $count domain diblokir"
         echo ""
     else
         MSG_FAIL "dnsmasq gagal start. Cek: sudo journalctl -u dnsmasq --no-pager -n 30"
@@ -101,8 +81,7 @@ EOF
 
 REMOVE_ADBLOCK() {
     MSG_TITLE "HAPUS ADBLOCK"
-    CONFIRM "Hapus AdBlock (dnsmasq)?" || return
-
+    CONFIRM "Hapus?" || return
     systemctl stop dnsmasq 2>/dev/null || true
     pkill -9 dnsmasq 2>/dev/null || true
     sleep 1
@@ -111,9 +90,8 @@ REMOVE_ADBLOCK() {
     rm -rf "$ADBLOCK_DIR" "$ADBLOCK_UPDATER" "$ADBLOCK_LOG"
     rm -f /etc/dnsmasq.d/adblock.conf
     crontab -l 2>/dev/null | grep -v "update-adblock.sh" | crontab - 2>/dev/null || true
-    UFW_DENY 53/tcp
-    UFW_DENY 53/udp
-    DNS_UNPROTECT
+    UFW_DENY 53/tcp; UFW_DENY 53/udp
+    DNS_PUBLIC
     CLEANUP_APT
     MSG_OK "AdBlock berhasil dihapus"
 }
@@ -125,8 +103,8 @@ DEPLOY_UPDATER() {
         cp "$src_upd" "$ADBLOCK_UPDATER" && chmod +x "$ADBLOCK_UPDATER"
         MSG_OK "Updater dari lokal"
     elif [ ! -f "$ADBLOCK_UPDATER" ]; then
+        DNS_SAFE
         curl -sSL -o "$ADBLOCK_UPDATER" "https://raw.githubusercontent.com/budijoi/adblock-n-squid/main/update-adblock.sh" 2>/dev/null && chmod +x "$ADBLOCK_UPDATER" || true
-        MSG_OK "Updater dari GitHub"
     fi
 }
 
@@ -134,35 +112,8 @@ UPDATE_ADBLOCK_LISTS() {
     if [ -f "$ADBLOCK_UPDATER" ]; then
         bash "$ADBLOCK_UPDATER"
     else
-        MSG_WARN "Updater tidak ditemukan, download manual..."
+        MSG_WARN "Updater tidak ditemukan"
         DEPLOY_UPDATER
         [ -f "$ADBLOCK_UPDATER" ] && bash "$ADBLOCK_UPDATER"
     fi
-}
-
-DNS_USE_LOCAL() {
-    sleep 2
-    if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
-        MSG_WARN "dnsmasq belum running, DNS publik dipertahankan"
-        return 1
-    fi
-    if ! nslookup google.com 127.0.0.1 2>/dev/null >/dev/null; then
-        MSG_WARN "dnsmasq belum siap melayani query, DNS publik dipertahankan"
-        return 1
-    fi
-    chattr -i /etc/resolv.conf 2>/dev/null || true
-    cat > /etc/resolv.conf << 'LOCAL'
-nameserver 127.0.0.1
-nameserver 1.1.1.1
-LOCAL
-    chattr +i /etc/resolv.conf 2>/dev/null || true
-    MSG_OK "DNS → local dnsmasq (127.0.0.1)"
-}
-
-DNS_UNPROTECT() {
-    chattr -i /etc/resolv.conf 2>/dev/null || true
-    cat > /etc/resolv.conf << 'PUBLIC'
-nameserver 1.1.1.1
-nameserver 8.8.8.8
-PUBLIC
 }
